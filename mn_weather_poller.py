@@ -7,6 +7,7 @@ This is the "pump jack" — step 1 of the weather data pipeline.
 
 import requests
 import json
+import time
 from datetime import datetime
 
 NOAA_ALERTS_URL = "https://api.weather.gov/alerts/active"
@@ -81,4 +82,9 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    POLL_INTERVAL = 60  # seconds
+
+    while True:
+        main()
+        print(f"⏳ Sleeping {POLL_INTERVAL}s until next poll...\n")
+        time.sleep(POLL_INTERVAL)
