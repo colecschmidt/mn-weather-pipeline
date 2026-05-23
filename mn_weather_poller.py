@@ -9,10 +9,12 @@ import requests
 import json
 import time
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from kafka import KafkaProducer
 from kafka.errors import NoBrokersAvailable
 from dotenv import load_dotenv
+import boto3
+from botocore.exceptions import BotoCoreError, ClientError
 
 load_dotenv()
 
@@ -27,6 +29,9 @@ HEADERS = {
 KAFKA_BROKER = os.environ.get("KAFKA_BROKER", "localhost:9092")
 KAFKA_TOPIC = "mn-weather-alerts"
 POLL_INTERVAL = 60
+
+S3_BUCKET = os.environ.get("S3_BUCKET", "")
+s3 = boto3.client("s3") if S3_BUCKET else None
 
 
 def make_producer():
@@ -56,6 +61,23 @@ def fetch_alerts():
     return response.json()
 
 
+def archive_to_s3(raw_response):
+    if not s3:
+        return
+    now = datetime.now(timezone.utc)
+    key = f"raw/year={now.year}/month={now.month:02d}/day={now.day:02d}/{now.strftime('%H-%M-%S')}.json"
+    try:
+        s3.put_object(
+            Bucket=S3_BUCKET,
+            Key=key,
+            Body=json.dumps(raw_response).encode("utf-8"),
+            ContentType="application/json",
+        )
+        print(f"   ☁️  Archived to s3://{S3_BUCKET}/{key}")
+    except (BotoCoreError, ClientError) as e:
+        print(f"   ❌ S3 upload failed: {e}")
+
+
 def build_event(alert):
     """Extract the fields we care about into a clean event."""
     props = alert.get("properties", {})
@@ -79,6 +101,8 @@ def poll_and_publish(producer):
     except requests.RequestException as e:
         print(f"❌ NOAA request failed: {e}")
         return
+
+    archive_to_s3(data)
 
     features = data.get("features", [])
     if not features:

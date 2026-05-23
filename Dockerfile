@@ -5,6 +5,6 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install -r requirements.txt
 
-COPY mn_weather_poller.py .
+COPY *.py .
 
 CMD ["python", "mn_weather_poller.py"]
