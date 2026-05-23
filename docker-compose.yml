@@ -15,10 +15,47 @@ services:
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: weather
+      POSTGRES_USER: weather
+      POSTGRES_PASSWORD: weather
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U weather -d weather"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   poller:
     build: .
     depends_on:
-      - kafka
+      kafka:
+        condition: service_healthy
+    env_file: .env
     environment:
       KAFKA_BROKER: kafka:9092
+
+  consumer:
+    build: .
+    command: python mn_weather_consumer.py
+    depends_on:
+      kafka:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      KAFKA_BROKER: kafka:9092
+      POSTGRES_HOST: postgres
+
+volumes:
+  pgdata:

@@ -12,11 +12,15 @@ import os
 from datetime import datetime
 from kafka import KafkaProducer
 from kafka.errors import NoBrokersAvailable
+from dotenv import load_dotenv
+
+load_dotenv()
 
 NOAA_ALERTS_URL = "https://api.weather.gov/alerts/active"
 STATE = "MN"
+CONTACT_EMAIL = os.environ.get("CONTACT_EMAIL", "")
 HEADERS = {
-    "User-Agent": "mn-weather-pipeline/0.1 (your@email.com)",
+    "User-Agent": f"mn-weather-pipeline/0.1 ({CONTACT_EMAIL})",
     "Accept": "application/geo+json"
 }
 
